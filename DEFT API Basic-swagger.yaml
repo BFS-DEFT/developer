@@ -1,0 +1,1079 @@
+---
+swagger: "2.0"
+
+################################################################################
+#                              API Information                                 #
+################################################################################
+
+info:
+  version: "1.0.3"
+  title: "DEFT API"
+  description: |
+  
+    ## Introduction
+    Get Paid faster with DEFT API!
+    
+    DEFT API services gives Biller’s the opportunity to provide a highly personalised payment experience for their payers, by providing a variety of payment options, enhanced security features (including the secure storage of card information), via their own Biller application.
+    
+    
+    Payments submitted to DEFT API are processed by Macquarie following the verification of the Biller’s application within the production environment. Once the information has been processed, it is credited to the Biller over the next one or two processing days.
+    
+    Payments are settled on processing days only. Any payments made before the settlement cut-off times will be settled on the next processing day (day one for non-consolidated Billers and Day two for consolidated Billers). Any payments made after this time will be postponed for settlement until the next process day.
+    
+    The Settlement cut-off times are:
+    * American Express and Diners Club        7pm (Sydney Time)
+    * MasterCard and VISA                     9:30pm (Sydney Time)
+    
+    ## Technical Requirements
+    Any applications using DEFT's API must meet the following technical requirements to be allowed into the DEFT production environment:
+    * Perform hourly OAuth2.0 requests to DEFT servers. This will ensure that the application remains authorised for its DEFT eAPI service.
+    * Receipt and reconcile payments. The application must be able to reconcile payments made to its DEFT Biller Code by consuming a Macquarie TXN or PAY File.
+    * Any page that is used to capture credit card information must include the following fields:
+      * Card Number
+      * Card Holder Name
+      * Expiry Date
+      * Card Security Code
+      * Payment Amount
+      * Notification of Credit Card Surcharges as Applicable.
+      
+      The Page must also include the following text with 'DEFT' hyperlinked to the DEFT Terms of Use:
+      
+      "This payment is powered by [DEFT](https://www.deft.com.au/access/index.aspx?nw=newwindow&hti=57A5CD9930BF3437A583F877AF999A7646AFF45749B18470E08B57B2F1D68C2CADC7678937BD2F4E128364BEDCC5AE9EFAAF1C6FF54298F9EB61344D6C116A4477220986685EA5E4871DA3F439CA16E1BF55)"
+    * Maintain PCI DSS Compliance with the applicable PCI DSS Standard.
+    
+    ## Integration Process
+    
+    # Discovery phase: 
+    
+    This phase involves the Transactional Banking team and the client and/or software provider. If DEFT eAPI is deemed to be a suitable solution then the initiation phase will commence.
+      
+    # Initiation phase: 
+    
+    The client will be sent the DEFT API Integration Guide, DEFT Terms and Conditions and an Indicative Offer by their relationship manager. The client’s software developer will be sent the DEFT API Integration Guide to facilitate the integration process.
+        
+      This will be followed up by with a phone call from the Macquarie Connectivity team to talk through the product and the integration process.
+    # Planning and Development phase:
+    
+    Macquarie’s Connectivity Support team will be available during this phase to provide technical support. 
+    At the end of the planning phase the software provider will provide an overview of their solution to Macquarie (in the form of a Solution Design document, a schematic or a demonstration) so that feedback can be provided on the effectiveness of the proposed solution.
+    
+    # Testing phase: 
+    
+    Macquarie will facilitate testing of the product to ensure both parties are satisfied that the software integration was successful. This will be conducted via a 24/7 sandbox environment that the client will have access to.
+    # Review & Sign off phase:
+   
+    Following the successful testing of the software application, Macquarie will conduct a review of the implemented solution to ensure that it meets Macquarie’s requirements.
+   
+    Following the completion of this process, the client will be on-boarded to the DEFT eAPI production environment.
+    
+    ## Terms of Use
+    [API Legal Terms of Use](https://www.deft.com.au/access/index.aspx?nw=newwindow&hti=57A5CD9930BF3437A583F877AF999A7646AFF45749B18470E08B57B2F1D68C2CADC7678937BD2F4E128364BEDCC5AE9EFAAF1C6FF54298F9EB61344D6C116A4477220986685EA5E4871DA3F439CA16E1BF55)
+
+################################################################################
+#                  Host, Base Path, Schemes and Content Types                  #
+################################################################################
+
+host: "api.sandbox.deft.com.au"
+basePath: "/v2"
+schemes:
+- "http"
+- "https"
+produces:
+- "application/json"
+consumes:
+- "application/json"
+
+################################################################################
+#                                OAuth2.0 Request                              #
+################################################################################
+
+securityDefinitions:
+  oauth:
+    type: oauth2
+    description: |
+      To access the DEFT API service, a valid DEFT API security token is
+      required. To obtain this, the Biller must obtain a client ID and client
+      secret from DEFT and be onboarded into the sandbox environment.
+      
+      The Access Code is in the form "Bearer client_id:client_secret" where the client Id/ Client Secret pair is in base64.
+      
+      For example, a client_id:client_secret of username:password would have an access code of "Bearer dXNlcm5hbWU6cGFzc3dvcmQ="
+    flow: application
+    tokenUrl: 'https://api.sandbox.deft.com.au/macquarie/v1/oauth20'
+    scopes:
+      deft_biller_write: |
+        Grant used to access the DEFT eAPI Basic Product Suite
+security:
+  - oauth:
+      - deft_biller_write
+      
+################################################################################
+#                                   Tags                                       #
+################################################################################
+
+tags:
+- name: "API Basic"
+  description: "All APIs that are encompassed in the DEFT eAPI Basic Product Suite."
+- name: "API DDA"
+  description: "All APIs that are explicit to the DEFT eAPI DDA Product Suite.These APIs
+      must be bought additional to the base eAPI suite."
+- name: "Payment Schedule"
+  description: "APIs specific to creating, deleting or querying payment schedules."
+- name: "Payment"
+  description: "APIs specific to requesting a one-off payment or performing a direct debit request."
+- name: "Card Token"
+  description: "API used to create, delete and update credit card tokens."
+- name: "Surcharge"
+  description: "APIs used to calculate the surcharge applied to a transaction and the total amount that will be charged to a payer."
+
+################################################################################
+#                                      Paths                                   #
+################################################################################
+
+paths:
+  /payment:
+      post:
+        security: 
+          - oauth: 
+            - deft_biller_write
+        tags:
+        - "Payment"
+        - "API Basic"
+        summary: "Request a financial institution to debit an amount from a payer's selected payment method to your bank account."
+        description: "This function requests a financial institution to debit funds from a specific card scheme and credit them to the Biller’s account. The bank will immediately authorise a valid card scheme and respond in real time. A receipt will also be sent to the recipient email as reference to the payment, if provided."
+        operationId: "mockApigeePayment"
+        parameters:
+        - in: "body"
+          name: "Payment Request"
+          description: "Payload to be sent with a one-off payment request."
+          required: false
+          schema:
+            $ref: "#/definitions/OneOffPaymentRequest"
+        responses:
+          200:
+            description: "Payment processing successful "
+            schema:
+              $ref: "#/definitions/OneOffPaymentResponse"
+          400:
+            description: "Invalid request"
+            schema:
+              type: "array"
+              items:
+                $ref: "#/definitions/ErrorValue"
+  /surcharge:
+    post:
+        security: 
+          - oauth: 
+            - deft_biller_write
+        tags:
+        - "Surcharge"
+        - "API Basic"
+        summary: "Calcluate the total amount to be charged to the payer for a given credit card transaction."
+        description: "A surcharge request gives an itemised payment summary describing the surcharge amount and/or any fees associated with the payment. This is designed to accommodate the dynamic surcharging of various card schemes under various contexts of payment. The service offers such information as the surcharge rate, surcharge amount and the total amount due from the Payer for a transaction."
+        operationId: "XXXX"
+        parameters:
+          - in: "body"
+            name: "Surcharge Request"
+            description: "Payload to be sent with a credit card surcharge request."
+            required: false
+            schema:
+              $ref: "#/definitions/surchargeRequest"
+        responses:
+          200:
+            description: "Surcharge Request was successful"
+            schema:
+              $ref: "#/definitions/surchargeResponse"
+          400:
+            description: "Invalid request"
+            schema:
+              type: "array"
+              items:
+                $ref: "#/definitions/ErrorValue"
+  /v2/payment-schedule/{id}:
+    get:
+      tags:
+      - "Payment Schedule"
+      - "API Basic"
+      summary: "Get information on a payer's pre-existing payment-schedule that has been generated by the biller."
+      description: "Request information on a payment schedule that has previously been generated by the biller. This request can be on a single future dated payment or on multiple recurring payments. The request will reveal information such as the schedule's start and end date, its frequency, the payment method used (including secure token) as well as the next payment date for the payment-schedule."
+      operationId: "getPaymentSchedules"
+      parameters:
+      - name: "id"
+        in: "path"
+        pattern: "\\d+"
+        description: "Identification number unique to each schedule."
+        maxLength: 19
+        required: true
+        type: "number"
+      responses:
+        200:
+          description: "Successful Payment-Schedule Search"
+          schema:
+            $ref: "#/definitions/paymentScheduleResponse"
+        400:
+          description: "Invalid Request"
+          schema:
+            $ref: "#/definitions/ErrorValue"
+    put:
+      tags:
+      - "Payment Schedule"
+      - "API Basic"
+      summary: "Update a payment schedule that has previously been generated by the Biller."
+      description: "The update payment-schedule request allows a Biller to update a payment schedule using the schedule ID. Any update schedule requests will be processed on the next calendar day by DEFT. This includes any update made to the last payment on the day of processing. Any update schedule request will overwrite the current version of the payment schedule."
+      operationId: "updatePaymentSchedule"
+      parameters:
+      - in: "body"
+        name: "Update Payment-Schedule Request"
+        description: "Payload to be sent with an update payment-schedule request."
+        required: false
+        schema:
+          $ref: "#/definitions/paymentScheduleRequest"
+      - name: "id"
+        in: "path"
+        pattern: "\\d+"
+        description: "Identification number unique to each schedule."
+        maxLength: 19
+        required: true
+        type: "number"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/paymentScheduleResponse"
+        400:
+          description: "Invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+    delete:
+      tags:
+      - "Payment Schedule"
+      - "API Basic"
+      summary: "Delete a payment-schedule that has been previously created by the Biller."
+      description: "The delete schedule process allows the Biller to terminate any payment schedule previously created bt the Biller using DEFT API. A cancelled payment schedule cannot be renewed once terminated. All 'DELETE Payment Schedule' Requests will be processed on the next calendar day."
+      operationId: "deletePaymentSchedule"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        pattern: "\\d+"
+        description: "Identification number unique to each schedule."
+        maxLength: 19
+        required: true
+        type: "number"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/deletePaymentScheduleResponse"
+        400:
+          description: "Invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+  /v2/payment-schedule:
+    post:
+      tags:
+      - "Payment Schedule"
+      - "API Basic"
+      summary: "Create a payment schedule for a payer against a nominated payment method."
+      description: "A payment schedule request allows DEFT to store payment details for future processing.  This could either be a single future dated payment, or multiple recurring payments with a set frequency. DEFT will process the payments on the cyclical due date, until cancelled or a pre-specified cancellation point is reached. With this feature, Billers are also able to update, query and remove payment schedules that they have created."
+      operationId: "executePaymentSchedule"
+      parameters:
+      - name: "Payment Schedule Request"
+        in: "body"
+        required: false
+        schema:
+          $ref: "#/definitions/paymentScheduleRequest"
+      responses:
+        200:
+          description: "Completed"
+          schema:
+            $ref: "#/definitions/paymentScheduleResponse"
+        400:
+          description: "failed execution (can retry)"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+  /v2/card-token:
+    post:
+      tags:
+      - "Card Token"
+      - "API Basic"
+      summary: "Tokenise a Credit Card"
+      description:  |
+      
+        The tokenisation API allows Billers to tokenise credit-card information without a transaction taking place. This will replace sensitive card information with a non-sensitive equivalent, the secure token.
+      
+        The secure token can be used in all DEFT API requests that require a payment method. This secure token can only be used by the Biller who generates it."
+      operationId: "createCardToken"
+      parameters:
+      - in: "body"
+        name: "Create Credit Card Token Request"
+        description: "Card token details to store"
+        required: false
+        schema:
+          $ref: "#/definitions/creditCardTokenRequest"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/creditCardTokenInfo"
+        400:
+          description: "invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+  /v2/card-token/{securetoken}:
+    put:
+      tags:
+      - "Card Token"
+      - "API Basic"
+      summary: "Updates a card token with new card information."
+      description: |
+        The update token API allows the Biller to update the card expiry date associated with a payer's token. 
+      
+        This operation will overwrite the existing card expiry date. The request is processed on the following calendar day to the operation’s operation.
+      operationId: "cardTokenUpdate"
+      parameters:
+      - name: "securetoken"
+        in: "path"
+        required: true
+        type: "string"
+        pattern: "\\d+"
+        description: "Tokenisation of payment information. Token will not be returned if it cannot be validated by DEFT."
+      - in: "body"
+        name: "Update Card Token Request"
+        description: "Payload to be sent with an update card token request."
+        required: false
+        schema:
+          $ref: "#/definitions/updateCreditCardTokenRequest"
+      - name: "rootBillerId"
+        in: "query"
+        required: false
+        type: "integer"
+        format: "int64"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/creditCardTokenInfo"
+        400:
+          description: "Invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+    delete:
+      tags:
+      - "Card Token"
+      - "API Basic"
+      summary: "Deletes a Credit Card Token"
+      description: "The remove token API allows the Biller to remove a Payer’s secure token from being available through DEFT API. This operation will terminate the usage of this secure token permanently and will be processed on the following calendar day to the operation’s successful response."
+      operationId: "deleteToken"
+      parameters:
+      - name: "securetoken"
+        in: "path"
+        required: true
+        type: "string"
+        pattern: "\\d+"
+        description: "Tokenisation of payment information. Token will not be returned if it cannot be validated by DEFT."
+      responses:
+        400:
+          description: "Invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+definitions:
+  creditCardTokenInfo:
+    type: "object"
+    required:
+    - "cardExpiryDate"
+    - "cardBin"
+    - "lastFourDigits"
+    - "cardHolder"
+    - "secureToken"
+    properties:
+      cardExpiryDate:
+        description: "The card expiration date is to be given in MMYY format (i.e. July 2015= 0715)."
+        minLength: 4
+        maxLength: 4
+        type: "string"
+      cardBin:
+        minLength: 6
+        type: "integer"
+        format: "int64"
+        description: "Bank Identification Number. The first six digits of the Payer’s Cardholder Number."
+      lastFourDigits:
+        type: "string"
+        minLength: 4
+        maxLength: 4
+        pattern: "([0-9])*"
+        description: "Last four digits of the credit card used to make the payment."
+      dbc:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
+      cardHolder:
+        description: "Name as it appears on the Credit Card"
+        minLength: 0
+        maxLength: 25
+        type: "string"
+      secureToken:
+        description: "The secure token is the tokenised encryption used to represent payment information from a previous transaction."
+        type: "string"
+        maxLength: 16
+        pattern: "([0-9])*"
+  creditCardTokenRequest:
+    type: "object"
+    required:
+    - "dbc"
+    - "cardDetails"
+    properties:
+      dbc:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
+      cardDetails:
+        $ref: "#/definitions/walletCreditCard"
+  ErrorValue:
+    required:
+    - "errorCode"
+    - "message"
+    - "details"
+    - "type"
+    type: "object"
+    properties:
+      errorCode:
+        description: "Numeric reference for the specific error encountered."
+        type: "integer"
+        format: "int32"
+        maxLength: 10
+      message:
+        description: "Short explanation of error result."
+        type: "string"
+        maxLength: 255
+      details:
+        description: "Long explanation of what the error is specifically and information on how to possible solve the issue at hand."
+        type: "string"
+        maxLength: 255
+      type:
+        description: "Error category for the type of error experienced."
+        type: "string"
+        enum:
+        - "ACCESS_ERROR"
+        - "REQUEST_ERROR"
+        - "LOGIC_ERROR"
+        - "SYSTEM_ERROR"
+        - "USER_MESSAGE"
+        - "REFUND_ERROR"
+        - "PAYMENT_METHOD_ERROR"
+        maxLength: 255
+      field:
+        description: "The field in which the error occurred. This field will only be presented if the error is field specific."
+        type: "string"
+        maxLength: 255
+  OneOffPaymentResponse:
+    type: "object"
+    required:
+    - "responseCode"
+    - "responseTimestamp"
+    - "settlementDate"
+    - "surchargeRate"
+    - "fee"
+    - "surchargeAmount"
+    - "totalAmount"
+    - "drn"
+    - "dtrn"
+    - "receiptNumber"
+    - "secureToken"
+    properties:
+      responseCode:
+        description: "Response code indicative of the success of the request."
+        type: "integer"
+        format: "int64"
+      responseTimestamp:
+        description: "The time stamp indicates the time (AEDT/ AEST) at which the call to the API was received by DEFT. Response Timestamp will be in the format {DATE} T {TIME} {TIMEZONE}."
+        type: "string"
+      settlementDate:
+        description: "The settlement date is the time (AEDT/ AEST) at which the transaction took place. Settlement Date will be in the format YYYY-MM-DD"
+        type: "string"
+      fee:
+        description: "The flat fee (in the currency specified) charged to the Payer for the service. The amount is in dollars (1.50=$1.50)."
+        type: "integer"
+        format: "int64"
+      surchargeAmount:
+        description: "The total surcharge amount to be charged for the transaction. The amount is in dollars (2.50=$2.50)."
+        type: "integer"
+        format: "int64"
+      surchargeRate:
+        description: "The calculated surcharge rate (for the currency specified). This must be a positive integer or zero. Surcharge rate must be inputted as a percentage: 1.25=1.25%"
+        type: "integer"
+        format: "int64"
+      totalAmount:
+        description: "Calculated total (in the currency specified) to charge the Payer. The total will be calculated as the sum of the amount, surcharge and fee."
+        type: "integer"
+        format: "int64"
+      secureToken:
+        description: "Tokenisation of payment information. Token will not be returned in case of payment failure or if selected not to."
+        type: "string"
+      drn:
+        description: "DEFT Reference Number for the transaction."
+        type: "integer"
+        format: "int64"
+      dtrn:
+        description: "DEFT Transaction Number used to reference the transaction between DEFT and the payer."
+        type: "integer"
+        format: "int64"
+      receiptNumber:
+        type: "integer"
+        format: "int64"
+        description: "Reference number unique to each receipt for reconciliation of the transaction."
+  surchargeRequest:
+    type: "object"
+    required:
+    - "dbc"
+    - "currencyCode"
+    - "amount"
+    - "paymentFrequency"
+    properties:
+      dbc:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
+      currencyCode:
+        type: "string"
+        description: "Currency code (ISO 4217 alphabetic code). Currently only ‘AUD’ is supported."
+        minLength: 1
+        maxLength: 3
+        pattern: "([a-zA-Z0-9])*"
+      amount:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "The amount (in the currency specified) requested by the Biller. This amount is to be entered as a positive dollar value to two decimal places. e.g. $55.80=55.80"
+      paymentFrequency:
+        type: "string"
+        description: "Payment frequency denotes whether the transaction is a one-off or recurring. The supported values are ‘ONE_OFF’ or ‘RECURRING’ respectively."
+        enum:
+        - "ONE_OFF"
+        - "RECURRING"
+      bin:
+        minLength: 6
+        type: "integer"
+        format: "int64"
+        description: "Bank Identification Number. The first six digits of the Payer’s Cardholder Number."
+      secureToken:
+        description: "The secure token is the tokenised encryption used to represent payment information from a previous transaction."
+        type: "string"
+        maxLength: 16
+        pattern: "([0-9])*"
+  surchargeResponse:
+    type: "object"
+    required:
+    - "schemeName"
+    - "surchargeRate"
+    - "fee"
+    - "surchargeAmount"
+    - "totalAmount"
+    properties:
+      schemeName:
+        description: "The card scheme that the card used belongs to."
+        type: "string"
+        enum:
+          - "VISA"
+          - "MASTERCARD"
+          - "AMERICAN EXPRESS"
+          - "DINERS"
+      surchargeRate:
+        description: "The calculated surcharge rate (for the currency specified). This must be a positive integer or zero. Surcharge rate must be inputted as a percentage: 1.25=1.25%"
+        type: "integer"
+        format: "int64"
+      fee:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "The flat fee (in the currency specified) to charge the Payer for the service. Amount must be inputted in dollars (1.50=$1.50). The fee will only be recognised if the field injectFeeAndSurcharge has the value of “No”. If there is no associated fee, please submit “0” in this field."
+      surchargeAmount:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "The total surcharge amount to be charged for the transaction. Amount must be given in dollars (2.50=$2.50). The surcharge amount will only be recognised if the field injectFeeAndSurcharge has the value of “No”. If there is no associated surcharge, please submit “0” in this field."
+      totalAmount:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "Calculated total (in the currency specified) to charge the Payer. The total will be calculated as the sum of the amount, surcharge and fee. This field is only mandatory if the option to supply the surcharge amount and fee has been selected."
+  OneOffPaymentRequest:
+    type: "object"
+    required:
+    - "amount"
+    - "currencyCode"
+    - "paymentFrequency"
+    - "ecomIndicator"
+    - "injectFeeAndSurcharge"
+    properties:
+      drn:
+        type: "string"
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        minLength: 9
+        maxLength: 19
+        pattern: "([0-9])*"
+      dbc:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
+      crn:
+        description: "Customer reference number. Custom 3-10 digit customer reference number."
+        type: "integer"
+        format: "int64"
+        minLength: 3
+        maxLength: 10
+      currencyCode:
+        type: "string"
+        description: "Currency code (ISO 4217 alphabetic code). Currently only ‘AUD’ is supported."
+        minLength: 1
+        maxLength: 3
+        pattern: "([a-zA-Z0-9])*"
+      amount:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "The amount (in the currency specified) requested by the Biller. This amount is to be entered as a positive dollar value to two decimal places. e.g. $55.80=55.80"
+      fee:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "The flat fee (in the currency specified) to charge the Payer for the service. Amount must be inputted in dollars (1.50=$1.50). The fee will only be recognised if the field injectFeeAndSurcharge has the value of “No”. If there is no associated fee, please submit “0” in this field."
+      surchargeAmount:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "The total surcharge amount to be charged for the transaction. Amount must be given in dollars (2.50=$2.50). The surcharge amount will only be recognised if the field injectFeeAndSurcharge has the value of “No”. If there is no associated surcharge, please submit “0” in this field."
+      totalAmount:
+        minLength: 4
+        maxLength: 19
+        type: "number"
+        description: "Calculated total (in the currency specified) to charge the Payer. The total will be calculated as the sum of the amount, surcharge and fee. This field is only mandatory if the option to supply the surcharge amount and fee has been selected."
+      recipientEmail:
+        maxLength: 250
+        type: "string"
+        description: "The associated Payer email for receipt. This must take the form of an email address (eg. requires LocalPart@DomainName)."
+        pattern: "([\\u0020-\\u007E])*"
+      paymentFrequency:
+        type: "string"
+        description: "Payment frequency denotes whether the transaction is a one-off or recurring. The supported values are ‘ONE_OFF’ or ‘RECURRING’ respectively."
+        enum:
+        - "ONE_OFF"
+        - "RECURRING"
+      cardDetails:
+        $ref: "#/definitions/walletCreditCard"
+      secureToken:
+        description: "The secure token is the tokenised encryption used to represent payment information from a previous transaction."
+        type: "string"
+        maxLength: 16
+        pattern: "([0-9])*"
+      injectFeeAndSurcharge:
+        description: "Indicates whether DEFT will inject the surcharge and fee associated with the transaction or if it will be provided by the Biller. Supported values are “Yes” for inject values and “No” if it will be supplied in the request."
+        type: "string"
+        enum:
+        - "Yes"
+        - "No"
+      customDescription:
+        description: "Custom field for the Biller to record a statement of interest that will be recorded alongside the request."
+        type: "string"
+        minLength: 0
+        maxLength: 280
+      ecomIndicator:
+        description: "Ecommerce Indicator Code for the transaction. Select 02 for recurring transactions or 07 for One-Off eCommerce transactions."
+        type: "string"
+        enum:
+        - "02"
+        - "07"
+  paymentScheduleResponse:
+      type: "object"
+      required:
+      - "endDate"
+      - "fee"
+      - "secureToken"
+      - "channel"
+      - "rootBillerId"
+      - "sendScheduleCreatedEmail"
+      - "sendTransactionEmail"
+      - "customDescription"
+      - "dbc"
+      - "crn"
+      - "drn"
+      - "id"
+      - "cardDetails"
+      - "createdTimestamp"
+      - "nextPaymentDate"
+      - "surchargeAmount"
+      - "surchargeRate"
+      - "totalAmount"
+      - "status"
+      - "frequency"
+      - "currencyCode"
+      - "amount"
+      - "cycleFrequency"
+      - "cycleInterval"
+      - "paymentMethod"
+      - "startDate"
+      properties:
+        startDate:
+          type: "string"
+          format: "date-time"
+          description: "Date (AEDT/ AEST) that the schedule payment will begin. If this value is not given, the payment will start on the date which the schedule payment request was made. Format: YYYY-MM-DD."
+          maxLength: 8
+          minLength: 8
+        endDate:
+          type: "string"
+          format: "date-time"
+          description: "Date (AEDT/ AEST) that the schedule payment will terminate (option 1). If this value is not given, the payment will continue until a terminate payment schedule request is made. If the end date falls on the same date as a transaction, that transaction will still be processed. Format: YYYY-MM-DD"
+          maxLength: 8
+          minLength: 8
+        paymentMethod:
+          type: "string"
+          enum:
+          - "CARD"
+          description: "Indicates the payment method used for the payment schedule. Currently supported values is “Card” for card transactions (incl. Card Tokens)."
+        cycleInterval:
+          description: "Counting interval for schedule cycle frequency. Accepted values are “D” for Daily, ”W” for Weekly, “M” for Monthly and “Y” for Yearly."
+          type: "string"
+          enum:
+          - "D"
+          - "W"
+          - "M"
+          - "Y"
+          maxLength: 1
+          minLength: 1
+        cycleFrequency:
+          description: "Frequency of the billing cycle. This numerical count value will be matched with the interval to determine the period between payments."
+          type: "integer"
+          format: "int32"
+          minLength: 1
+          maxLength: 3
+        amount:
+          type: "number"
+          description: "The amount (in the currency specified) requested by the Biller. This amount is to be entered as a positive dollar value to two decimal places. e.g. $55.80=55.80"
+          maxLength: 19
+          minLength: 4
+        secureToken:
+          description: "Tokenisation of payment information. Token will not be returned in case of payment failure or if selected not to."
+          type: "string"
+        newStartDate:
+          type: "string"
+          format: "date-time"
+          minLength: 8
+          maxLength: 8
+          description: "Date in which a new amount change will take place. If the new amount date is to occur on a transaction date, the transaction will be processed with the new amount. This date must occur after the start date. Format: YYYY-MM-DD"       
+        newAmount:
+          type: "number"
+          minLength: 3
+          maxLength: 19
+          description: "New amount that a payment will take after the new amount date. The new amount is to be entered as a positive dollar value. e.g. $20.00=20.00"
+        channel:
+          type: "string"
+          description: "Channel through which the payment is made"
+        currencyCode:
+          type: "string"
+          description: "Currency code in ISO 4217 Alphabetic code (e.g. AUD)"
+          minLength: 1
+          maxLength: 3
+          pattern: "([a-zA-Z0-9])*"
+        rootBillerId:
+          type: "string"
+          description: "Root Biller ID given to the client during the on-boarding process. Only mandatory for aggregator clients to pass."
+        sendScheduleCreatedEmail:
+          description: "If a recipient email is selected, DEFT will be able to send a receipt confirming scheduling information. “Yes” = Send confirmation, “No”= Do not send."
+          type: "string"
+          minLength: 2
+          maxLength: 5
+        sendTransactionEmail:
+          description: "If a recipient email is selected, DEFT will be able to send a transaction receipt for each payment part of the schedule. “Yes” = Send confirmation, “No”= Do not send."
+          type: "string"
+          minLength: 2
+          maxLength: 5
+        recipientEmail:
+          maxLength: 250
+          type: "string"
+          description: "The associated Payer email for receipt. This must take the form of an email address (eg. requires LocalPart@DomainName)."
+        customDescription:
+          description: "Custom field for the Biller to record a statement of interest that will be recorded alongside the request."
+          type: "string"
+          minLength: 0
+          maxLength: 280
+        dbc:
+          description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+          type: "integer"
+          format: "int64"
+          minLength: 6
+          maxLength: 9
+        crn:
+          description: "Customer reference number. Custom 3-10 digit customer reference number."
+          type: "integer"
+          format: "int64"
+          minLength: 3
+          maxLength: 10
+        drn:
+          type: "integer"
+          description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+          minLength: 9
+          maxLength: 19
+          pattern: "([0-9])*"
+        id:
+          type: "number"
+          description: "Identification number unique to each schedule."
+          maxLength: 19
+        cardDetails:
+          $ref: "#/definitions/walletCreditCard"
+        createdTimestamp:
+          type: "string"
+          format: "date-time"
+          description: "Timestamp for when the payment schedule was created in DEFT."
+        nextPaymentDate:
+          description: "Next payment date indicates the day on which the next payment will fall."
+          type: "string"
+          format: "date-time"
+        surchargeAmount:
+          minLength: 4
+          maxLength: 19
+          type: "number"
+          description: "The total surcharge amount to be charged for the transaction. Amount must be given in dollars (2.50=$2.50). The surcharge amount will only be recognised if the field injectFeeAndSurcharge has the value of “No”. If there is no associated surcharge, please submit “0” in this field."
+        surchargeRate:
+          description: "The calculated surcharge rate (for the currency specified). This must be a positive integer or zero. Surcharge rate must be inputted as a percentage: 1.25=1.25%"
+          type: "integer"
+          format: "int64"
+          minLength: 4
+          maxLength: 19
+        fee:
+          type: "number"
+          description: "The flat fee (in the currency specified) to charge the Payer for the service. Amount must be inputted in dollars (1.50=$1.50). The fee will only be recognised if the field injectFeeAndSurcharge has the value of “No”. If there is no associated fee, please submit “0” in this field."
+          minLength: 4
+          maxLength: 19
+        totalAmount:
+          minLength: 4
+          maxLength: 19
+          type: "number"
+          description: "Calculated total (in the currency specified) to charge the Payer. The total will be calculated as the sum of the amount, surcharge and fee. This field is only mandatory if the option to supply the surcharge amount and fee has been selected."
+        status:
+          type: "string"
+          enum:
+          - "ACTIVE"
+          - "CANCELLED"
+          - "COMPLETE"
+          description: "Indicates the status of the payment schedule. The currently supported values are 'ACTIVE' for currently running payment-schedules, 'CANCELLED' for payment-schedules that have been terminated and 'COMPLETED' for payment schedules that have reached their end date or count successfully."
+        frequency:
+          type: "string"
+          enum:
+          - "ONE OFF"
+          - "RECURRING"
+  deletePaymentScheduleResponse:
+      type: "object"
+      required:
+      - "drn"
+      - "frequency"
+      - "id"
+      - "createdTimestamp"
+      - "status"
+      properties:
+        customDescription:
+          description: "Custom field for the Biller to record a statement of interest that will be recorded alongside the request."
+          type: "string"
+          minLength: 0
+          maxLength: 280
+        drn:
+          type: "integer"
+          description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+          minLength: 9
+          maxLength: 19
+          pattern: "([0-9])*"
+        frequency:
+          type: "string"
+          enum:
+          - "ONE OFF"
+          - "RECURRING"
+        id:
+          type: "number"
+          description: "Identification number unique to each schedule."
+          maxLength: 19
+        createdTimestamp:
+          type: "string"
+          format: "date-time"
+          description: "Timestamp for when the payment schedule was created in DEFT."
+        status:
+          type: "string"
+          enum:
+          - "ACTIVE"
+          - "CANCELLED"
+          - "COMPLETE"
+          description: "Indicates the status of the payment schedule. The currently supported values are 'ACTIVE' for currently running payment-schedules, 'CANCELLED' for payment-schedules that have been terminated and 'COMPLETED' for payment schedules that have reached their end date or count successfully."
+  paymentScheduleRequest:
+    type: "object"
+    required:
+    - "currencyCode"
+    - "amount"
+    - "cycleFrequency"
+    - "cycleInterval"
+    - "paymentMethod"
+    - "startDate"
+    properties:
+      drn:
+        type: "integer"
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        minLength: 9
+        maxLength: 19
+        pattern: "([0-9])*"
+      dbc:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
+      crn:
+        description: "Customer reference number. Custom 3-10 digit customer reference number."
+        type: "integer"
+        format: "int64"
+        minLength: 3
+        maxLength: 10
+      customDescription:
+        description: "Custom field for the Biller to record a statement of interest that will be recorded alongside the request."
+        type: "string"
+        minLength: 0
+        maxLength: 280
+      currencyCode:
+        type: "string"
+        description: "Currency code in ISO 4217 Alphabetic code (e.g. AUD)"
+        minLength: 1
+        maxLength: 3
+        pattern: "([a-zA-Z0-9])*"
+      amount:
+        type: "number"
+        description: "The amount (in the currency specified) requested by the Biller. This amount is to be entered as a positive dollar value to two decimal places. e.g. $55.80=55.80"
+        maxLength: 19
+        minLength: 4
+      cycleFrequency:
+        description: "Frequency of the billing cycle. This numerical count value will be matched with the interval to determine the period between payments."
+        type: "integer"
+        format: "int32"
+        minLength: 1
+        maxLength: 3
+      cycleInterval:
+        description: "Counting interval for schedule cycle frequency. Accepted values are “D” for Daily, ”W” for Weekly, “M” for Monthly and “Y” for Yearly."
+        type: "string"
+        enum:
+        - "D"
+        - "W"
+        - "M"
+        - "Y"
+        maxLength: 1
+        minLength: 1
+      startDate:
+        type: "string"
+        format: "date-time"
+        description: "Date (AEDT/ AEST) that the schedule payment will begin. If this value is not given, the payment will start on the date which the schedule payment request was made. Format: YYYY-MM-DD."
+        maxLength: 8
+        minLength: 8
+      endDate:
+        type: "string"
+        format: "date-time"
+        description: "Date (AEDT/ AEST) that the schedule payment will terminate (option 1). If this value is not given, the payment will continue until a terminate payment schedule request is made. If the end date falls on the same date as a transaction, that transaction will still be processed. Format: YYYY-MM-DD"
+        maxLength: 8
+        minLength: 8
+      endPaymentCount:
+        type: "number"
+        description: "Count number for when a schedule will terminate (option 2). This field cannot be used in conjunction with end date field."
+        maxLength: 10
+        minLength: 1
+      newAmount:
+        type: "number"
+        minLength: 3
+        maxLength: 19
+        description: "New amount that a payment will take after the new amount date. The new amount is to be entered as a positive dollar value. e.g. $20.00=20.00"
+      newStartDate:
+        type: "string"
+        format: "date-time"
+        minLength: 8
+        maxLength: 8
+        description: "Date in which a new amount change will take place. If the new amount date is to occur on a transaction date, the transaction will be processed with the new amount. This date must occur after the start date. Format: YYYY-MM-DD"
+      recipientEmail:
+        maxLength: 250
+        type: "string"
+        description: "The associated Payer email for receipt. This must take the form of an email address (eg. requires LocalPart@DomainName)."
+      sendScheduleCreatedEmail:
+        description: "If a recipient email is selected, DEFT will be able to send a receipt confirming scheduling information. “Yes” = Send confirmation, “No”= Do not send."
+        type: "string"
+        minLength: 2
+        maxLength: 5
+      sendTransactionEmail:
+        description: "If a recipient email is selected, DEFT will be able to send a transaction receipt for each payment part of the schedule. “Yes” = Send confirmation, “No”= Do not send."
+        type: "string"
+        minLength: 2
+        maxLength: 5
+      paymentMethod:
+        type: "string"
+        enum:
+        - "CARD"
+        description: "Indicates the payment method used for the payment schedule. Currently supported values is “Card” for card transactions (incl. Card Tokens)."
+      cardDetails:
+        $ref: "#/definitions/walletCreditCard"
+      secureToken:
+        description: "Tokenisation of payment information. Token will not be returned in case of payment failure or if selected not to."
+        type: "string"
+  walletCreditCard:
+    type: "object"
+    properties:
+      cardHolder:
+        description: "Name as it appears on the Credit Card"
+        minLength: 0
+        maxLength: 25
+        type: "string"
+      cardNumber:
+        description: "Customer credit card number"
+        minLength: 15
+        maxLength: 16
+        type: "string"
+      cardExpiryDate:
+        description: "The card expiration date is to be given in MMYY format (i.e. July 2015= 0715)."
+        minLength: 4
+        maxLength: 4
+        type: "string"
+      cardCVV:
+        description: "CVV (Security Code) of the customer credit card."
+        minLength: 3
+        maxLength: 4
+        type: "string"
+  updateCreditCardTokenRequest:
+    type: "object"
+    required:
+    - "dbc"
+    - "cardDetails"
+    properties:
+      dbc:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
+      cardDetails:
+        type: "object"
+        properties:
+          cardExpiryDate:
+            description: "The card expiration date is to be given in MMYY format (i.e. July 2015= 0715)."
+            minLength: 4
+            maxLength: 4
+            type: "string" 
