@@ -125,6 +125,8 @@ tags:
   description: "API used to create, delete and update credit card tokens."
 - name: "Surcharge"
   description: "APIs used to calculate the surcharge applied to a transaction and the total amount that will be charged to a payer."
+- name: "DRN Generation"
+  description: "APIs used to create a unique DEFT Reference Number for future DEFT transactions."
 
 ################################################################################
 #                                      Paths                                   #
@@ -189,7 +191,32 @@ paths:
               type: "array"
               items:
                 $ref: "#/definitions/ErrorValue"
-  /v2/payment-schedule/{id}:
+  /payment-schedule:
+    post:
+      tags:
+      - "Payment Schedule"
+      - "API Basic"
+      summary: "Create a payment schedule for a payer against a nominated payment method."
+      description: "A payment schedule request allows DEFT to store payment details for future processing.  This could either be a single future dated payment, or multiple recurring payments with a set frequency. DEFT will process the payments on the cyclical due date, until cancelled or a pre-specified cancellation point is reached. With this feature, Billers are also able to update, query and remove payment schedules that they have created."
+      operationId: "executePaymentSchedule"
+      parameters:
+      - name: "Payment Schedule Request"
+        in: "body"
+        required: false
+        schema:
+          $ref: "#/definitions/paymentScheduleRequest"
+      responses:
+        200:
+          description: "Completed"
+          schema:
+            $ref: "#/definitions/paymentScheduleResponse"
+        400:
+          description: "failed execution (can retry)"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+  /payment-schedule/{id}:
     get:
       tags:
       - "Payment Schedule"
@@ -274,32 +301,7 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/ErrorValue"
-  /v2/payment-schedule:
-    post:
-      tags:
-      - "Payment Schedule"
-      - "API Basic"
-      summary: "Create a payment schedule for a payer against a nominated payment method."
-      description: "A payment schedule request allows DEFT to store payment details for future processing.  This could either be a single future dated payment, or multiple recurring payments with a set frequency. DEFT will process the payments on the cyclical due date, until cancelled or a pre-specified cancellation point is reached. With this feature, Billers are also able to update, query and remove payment schedules that they have created."
-      operationId: "executePaymentSchedule"
-      parameters:
-      - name: "Payment Schedule Request"
-        in: "body"
-        required: false
-        schema:
-          $ref: "#/definitions/paymentScheduleRequest"
-      responses:
-        200:
-          description: "Completed"
-          schema:
-            $ref: "#/definitions/paymentScheduleResponse"
-        400:
-          description: "failed execution (can retry)"
-          schema:
-            type: "array"
-            items:
-              $ref: "#/definitions/ErrorValue"
-  /v2/card-token:
+  /card-token:
     post:
       tags:
       - "Card Token"
@@ -329,7 +331,7 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/ErrorValue"
-  /v2/card-token/{securetoken}:
+  /card-token/{securetoken}:
     put:
       tags:
       - "Card Token"
@@ -390,7 +392,60 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/ErrorValue"
+  /drn:
+    post:
+      tags:
+      - "DRN Generation"
+      - "API Basic"
+      summary: "Create a Deft Reference Number from a Customer Reference Number and Deft Biller Code."
+      description: "Combine the two unique identifiers, the Customer Reference Number (CRN) and the Deft Biller Code (DBC) to form a unique Deft Reference Number (DRN). This identifier can be used to identify the payer in all future DEFT transactions with the Biller."
+      operationId: "createdrn"
+      parameters:
+      - name: "DRN Generation Request"
+        in: "body"
+        description: "Payload used to generate a DRN."
+        required: false
+        schema:
+          $ref: "#/definitions/createDrnRequest"
+      responses:
+        200:
+          description: "successful DRN generation request."
+          schema:
+            $ref: "#/definitions/createDrnResponse"
+        400:
+          description: "invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
 definitions:
+  createDrnRequest:
+    type: "object"
+    required:
+    - "dbc"
+    - "crn"
+    properties:
+      dbc:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
+      crn:
+        description: "Customer reference number. Custom 3-10 digit customer reference number."
+        type: "integer"
+        format: "int64"
+        minLength: 3
+        maxLength: 10
+  createDrnResponse:
+    type: "integer"
+    properties:
+      drn:
+        description: "DEFT Biller code or pivot account number. Unique Biller code used for the identification of the Biller account in any DEFT service."
+        type: "integer"
+        format: "int64"
+        minLength: 6
+        maxLength: 9
   creditCardTokenInfo:
     type: "object"
     required:
