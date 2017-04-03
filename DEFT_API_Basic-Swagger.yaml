@@ -84,39 +84,12 @@ consumes:
 - "application/json"
 
 ################################################################################
-#                                OAuth2.0 Request                              #
-################################################################################
-
-securityDefinitions:
-  oauth:
-    type: oauth2
-    description: |
-      To access the DEFT API service, a valid DEFT API security token is
-      required. To obtain this, the Biller must obtain a client ID and client
-      secret from DEFT and be onboarded into the sandbox environment.
-      
-      The Access Code is in the form "Bearer client_id:client_secret" where the client Id/ Client Secret pair is in base64.
-      
-      For example, a client_id:client_secret of username:password would have an access code of "Bearer dXNlcm5hbWU6cGFzc3dvcmQ="
-    flow: application
-    tokenUrl: 'https://api.sandbox.deft.com.au/macquarie/v1/oauth20'
-    scopes:
-      deft_biller_write: |
-        Grant used to access the DEFT eAPI Basic Product Suite
-security:
-  - oauth:
-      - deft_biller_write
-      
-################################################################################
 #                                   Tags                                       #
 ################################################################################
 
 tags:
-- name: "API Basic"
-  description: "All APIs that are encompassed in the DEFT eAPI Basic Product Suite."
-- name: "API DDA"
-  description: "All APIs that are explicit to the DEFT eAPI DDA Product Suite.These APIs
-      must be bought additional to the base eAPI suite."
+- name: "Authentication"
+  description:  "Request used to gain authorization credentials following authentication with the DEFT Data Servers."
 - name: "Payment Schedule"
   description: "APIs specific to creating, deleting or querying payment schedules."
 - name: "Payment"
@@ -133,46 +106,100 @@ tags:
 ################################################################################
 
 paths:
-  /payment:
-      post:
-        security: 
-          - oauth: 
-            - deft_biller_write
-        tags:
-        - "Payment"
-        - "API Basic"
-        summary: "Request a financial institution to debit an amount from a payer's selected payment method to your bank account."
-        description: "This function requests a financial institution to debit funds from a specific card scheme and credit them to the Biller’s account. The bank will immediately authorise a valid card scheme and respond in real time. A receipt will also be sent to the recipient email as reference to the payment, if provided."
-        operationId: "mockApigeePayment"
-        parameters:
-        - in: "body"
-          name: "Payment Request"
-          description: "Payload to be sent with a one-off payment request."
-          required: false
+
+################################################################################
+#                                OAuth2.0 Request                              #
+################################################################################
+  /auth/accessToken:
+    post:
+      tags:
+      - "Authentication"
+      summary: "POST OAuth2.0 Request"
+      description: "To access the DEFT API service, a valid DEFT API security token is required. To obtain this, the Biller must:
+
+        * Have obtained a client ID and a client secret from Macquarie.
+        
+        * Have their application verified for either testing or production environments.
+        
+        * Submit a DEFT security access request
+
+        The following list provides an overview of the field elements required for a successful DEFT API security token request."
+      operationId: "OAuth"
+      parameters:
+        - in: "query"
+          name: "grant_type"
+          description: "The grant type defines the method for which the Biller will be authenticated by DEFT before it is granted its DEFT API security token.  Supported method value is currently ‘client_credentials’."
+          type: "string"
+          enum:
+          - "client_credentials"
+        - in: "header"
+          name: "Authorization"
+          description: "+client_id:client_secret+ that has been base64 encoded and sent in the format 'Basic client_Id:client_secret'. For example, a client_id:client_secret of username:password would have an access code of 'Basic dXNlcm5hbWU6cGFzc3dvcmQ='"
+          type: "string"
+      responses:
+        200:
+          description: "Successful oAuth Request."
           schema:
-            $ref: "#/definitions/OneOffPaymentRequest"
-        responses:
-          200:
-            description: "Payment processing successful "
-            schema:
-              $ref: "#/definitions/OneOffPaymentResponse"
-          400:
-            description: "Invalid request"
-            schema:
-              type: "array"
-              items:
-                $ref: "#/definitions/ErrorValue"
+            $ref: "#/definitions/oauthResponse"
+        400:
+          description: "Invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+            
+################################################################################
+#                                One Off Payment                               #
+################################################################################
+
+  /payment:
+    post:
+      tags:
+      - "Payment"
+      summary: "POST Payment"
+      description:  | 
+        Request a financial institution to debit an amount from a payer's selected payment method to your bank account.
+      
+        The POST Payment function requests a financial institution to debit funds from the nominated payment method and credit them to a Biller’s account. This funciton will authorise the nominated payment method as valid and will respond in real time.
+        
+        A reciept will be issued to the recipient email, if provided.
+      operationId: "OneOffPayment"
+      parameters:
+      - in: "body"
+        name: "Payment Request"
+        description: "Payload to be sent with a one-off payment request."
+        required: false
+        schema:
+          $ref: "#/definitions/OneOffPaymentRequest"
+      responses:
+        200:
+          description: "Payment processing successful "
+          schema:
+            $ref: "#/definitions/OneOffPaymentResponse"
+        400:
+          description: "Invalid request"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ErrorValue"
+
+################################################################################
+#                                Surcharge                                     #
+################################################################################
+
   /surcharge:
     post:
-        security: 
-          - oauth: 
-            - deft_biller_write
         tags:
         - "Surcharge"
-        - "API Basic"
-        summary: "Calcluate the total amount to be charged to the payer for a given credit card transaction."
-        description: "A surcharge request gives an itemised payment summary describing the surcharge amount and/or any fees associated with the payment. This is designed to accommodate the dynamic surcharging of various card schemes under various contexts of payment. The service offers such information as the surcharge rate, surcharge amount and the total amount due from the Payer for a transaction."
-        operationId: "XXXX"
+        summary: "POST Surcharge"
+        description: |
+          
+          Calcluate the total amount to be charged to the payer for a given credit card transaction.
+          
+          The surcharge request gives an itemised payment summary describing the surcharge amount and/or any fees associated with the payment. 
+          
+          This feature is designed to accommodate the dynamic surcharging of various card schemes under various contexts of payment. The service offers such information as the surcharge rate, surcharge amount and the total amount due from the Payer for a transaction.
+        operationId: "surchargeRequest"
         parameters:
           - in: "body"
             name: "Surcharge Request"
@@ -191,13 +218,26 @@ paths:
               type: "array"
               items:
                 $ref: "#/definitions/ErrorValue"
+                
+################################################################################
+#                             Payment Schedules                                #
+################################################################################
+
   /payment-schedule:
     post:
       tags:
       - "Payment Schedule"
-      - "API Basic"
       summary: "Create a payment schedule for a payer against a nominated payment method."
-      description: "A payment schedule request allows DEFT to store payment details for future processing.  This could either be a single future dated payment, or multiple recurring payments with a set frequency. DEFT will process the payments on the cyclical due date, until cancelled or a pre-specified cancellation point is reached. With this feature, Billers are also able to update, query and remove payment schedules that they have created."
+      description: |
+      
+        Create a payment-schedule for a payer against a nominated payment method.
+        
+        A payment-schedule request allows the Biller to customise the payment experience for a payer to span over multiple periods. This request can be used to create:
+        * Future Dated One-Off Payments.
+        * Multiple Recurring Payments.
+        * Payments as a fixed amount installment.
+        
+        DEFT will process the payments on the cyclical due date, until cancelled or until the pre-specified cancellation point is reached. This payment-schedule can be updated or deleted using the GET and DELETE commands respectively.
       operationId: "executePaymentSchedule"
       parameters:
       - name: "Payment Schedule Request"
@@ -220,9 +260,14 @@ paths:
     get:
       tags:
       - "Payment Schedule"
-      - "API Basic"
-      summary: "Get information on a payer's pre-existing payment-schedule that has been generated by the biller."
-      description: "Request information on a payment schedule that has previously been generated by the biller. This request can be on a single future dated payment or on multiple recurring payments. The request will reveal information such as the schedule's start and end date, its frequency, the payment method used (including secure token) as well as the next payment date for the payment-schedule."
+      summary: "GET Payment-Schedule"
+      description: |
+      
+        Get information on a payment-schedule that has been previously generated by the biller.
+        
+        The Payment Schedule Information request will only generate information on a payment schedule that has been generated by the Biller. It will not reveal any information that has been generated by the payer (i.e. through the DEFT Payer Portal).
+        
+        This request will reveal information such as the payment-schedule's start and end date, its frequency, the payment method used (including its secure token) as well as the next payment date for the payment-schedule.
       operationId: "getPaymentSchedules"
       parameters:
       - name: "id"
@@ -244,9 +289,15 @@ paths:
     put:
       tags:
       - "Payment Schedule"
-      - "API Basic"
-      summary: "Update a payment schedule that has previously been generated by the Biller."
-      description: "The update payment-schedule request allows a Biller to update a payment schedule using the schedule ID. Any update schedule requests will be processed on the next calendar day by DEFT. This includes any update made to the last payment on the day of processing. Any update schedule request will overwrite the current version of the payment schedule."
+      summary: "PUT Payment Schedule"
+      description: |
+        Update a payment schedule that has previously been generated by the Biller.
+        
+        The update payment-schedule request allows a Biller to update a payment schedule with a known schedule ID beloging to that of the Biller.
+        
+        Any update schedule requests will be processed on the next calendar day by DEFT. This includes any update made to the last payment on the day of processing. Any update schedule request will overwrite the current version of the payment schedule.
+        
+        If a payment schedule is updated on its payment date. The original payment schedule will have already been processed. Consequently, for a payment schedule to impact a nominated payment, the change request must occur before the payment date. 
       operationId: "updatePaymentSchedule"
       parameters:
       - in: "body"
@@ -276,9 +327,14 @@ paths:
     delete:
       tags:
       - "Payment Schedule"
-      - "API Basic"
-      summary: "Delete a payment-schedule that has been previously created by the Biller."
-      description: "The delete schedule process allows the Biller to terminate any payment schedule previously created bt the Biller using DEFT API. A cancelled payment schedule cannot be renewed once terminated. All 'DELETE Payment Schedule' Requests will be processed on the next calendar day."
+      summary: "DELETE Payment-Schedule"
+      description: |
+      
+        Delete a payment-schedule that has been previously created by the Biller.
+        
+        The delete schedule process allows the Biller to terminate any payment schedule previously created by the Biller using DEFT API. A cancelled payment schedule cannot be renewed once terminated, instead a new replicating payment-schedule must be created to replace it.
+        
+        All 'DELETE Payment Schedule' Requests will be processed on the next calendar day. Hence, for it to terminate before a selected payment date, it must be requested before that calendar date.
       operationId: "deletePaymentSchedule"
       produces:
       - "application/json"
@@ -301,17 +357,27 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/ErrorValue"
+              
+################################################################################
+#                               Card Tokens                                    #
+################################################################################
+
   /card-token:
     post:
       tags:
       - "Card Token"
-      - "API Basic"
-      summary: "Tokenise a Credit Card"
+      summary: "POST card-token"
       description:  |
       
-        The tokenisation API allows Billers to tokenise credit-card information without a transaction taking place. This will replace sensitive card information with a non-sensitive equivalent, the secure token.
+        The POST card-token request is used to replace sensitive credit card information with a non-sensitive reference element that can be used in future transactions.
+        
+        The tokenisation API allows Billers to tokenise credit-card information without a transaction taking place. The resulting non-sensitive reference element, the Secure Token, can be processed by a Biller's Business Management System without the inherent risk of data breach.
+        
+        For Biller's wishing to de-scope their Business Management System as much as possible during their own PCI DSS audit. All transactions that involve payment information should first conduct a DIRECT POST to this endpoint to tokenise information.
+        
+        All following transaction requests used with these secure tokens are not within scope for PCI DSS that outline the transmission, storage or collection of RAW Primary Account Number (PAN) or Sensitive Authentication Data (SAD).
       
-        The secure token can be used in all DEFT API requests that require a payment method. This secure token can only be used by the Biller who generates it."
+        The secure token can be used in all DEFT API requests that require a payment method. The secure token is unique to the Biller who generates it."
       operationId: "createCardToken"
       parameters:
       - in: "body"
@@ -335,12 +401,14 @@ paths:
     put:
       tags:
       - "Card Token"
-      - "API Basic"
-      summary: "Updates a card token with new card information."
+      summary: "PUT Card-Token"
       description: |
-        The update token API allows the Biller to update the card expiry date associated with a payer's token. 
       
+        Updates a card token with a new expiry date.
+        
         This operation will overwrite the existing card expiry date. The request is processed on the following calendar day to the operation’s operation.
+        
+        If the secure token is part of an ongoing transaction, the payment method will be updated before the transaction is processed if requested before the payment date. Otherwsie, the previous payment method will be used.
       operationId: "cardTokenUpdate"
       parameters:
       - name: "securetoken"
@@ -374,9 +442,16 @@ paths:
     delete:
       tags:
       - "Card Token"
-      - "API Basic"
-      summary: "Deletes a Credit Card Token"
-      description: "The remove token API allows the Biller to remove a Payer’s secure token from being available through DEFT API. This operation will terminate the usage of this secure token permanently and will be processed on the following calendar day to the operation’s successful response."
+      summary: "DELETE Card-Token"
+      description: |
+      
+        Delete a card-token that has been previously generated by the Biller.
+        
+        The remove token API allows a Biller to terminate the functionality of a secure token. The DELETE Card-Token request will only terminate the usage of this token for the Biller that executes the request. Once deleted, this token cannot be renewed; instead it must be remade using a PUT card-token request.
+        
+        The DELETE card-token will be processed on the following calendar day following a successful response from the DEFT servers. A secure token cannot be deleted until all payment schedules using this secure-token have also been deleted.
+        
+        If this error occurs, an error message will appear nominating the payment-schedules that need to be deleted.
       operationId: "deleteToken"
       parameters:
       - name: "securetoken"
@@ -392,13 +467,23 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/ErrorValue"
+
+################################################################################
+#                                DRN Generation                                #
+################################################################################
+
   /drn:
     post:
       tags:
       - "DRN Generation"
-      - "API Basic"
-      summary: "Create a Deft Reference Number from a Customer Reference Number and Deft Biller Code."
-      description: "Combine the two unique identifiers, the Customer Reference Number (CRN) and the Deft Biller Code (DBC) to form a unique Deft Reference Number (DRN). This identifier can be used to identify the payer in all future DEFT transactions with the Biller."
+      summary: "POST DRN"
+      description: |
+      
+        Create a unique Deft Reference Number using a Customer Reference Number and Deft Biller Code.
+        
+        This request will form a new summary identifier from the two unique identifiers, the Customer Reference Number (CRN) and the Deft Biller Code (DBC) which are used to identify the Payer and the Biller respectively.  
+        
+        This DRN can be used in all future DEFT transactions with the Biller. This DRN can also be used in offline channels as well as in the DEFT platforms for reconciliation purposes.
       operationId: "createdrn"
       parameters:
       - name: "DRN Generation Request"
@@ -418,7 +503,36 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/ErrorValue"
+
+################################################################################
+#                                Definitions                                   #
+################################################################################
+
 definitions:
+  oauthResponse:
+    type: "object"
+    properties:
+      api_product_list:
+        description:  "List of all products that a Biller application will have access to with this bearer token."
+        type: "integer"
+        format: "int64"
+      organization_name:
+        description:  "The environment that the bearer token has access to. This will either be 'stage' for sandbox or 'prod' for production."
+        enum:
+          - stage
+          - prod
+      expires_in:
+        description:  "The remaining time left until the access token has expired."
+        type: "integer"
+        format: "int64"
+      token_type:
+        description:  "The token type describes the nature of the access token given from the DEFT security access request."
+        type: "integer"
+        format: "int64"
+      access_token:
+        description: "The token that should be used as the Bearer Token value in all future authentication requests."
+        type: "integer"
+        format: "int64"
   createDrnRequest:
     type: "object"
     required:
@@ -487,6 +601,41 @@ definitions:
         type: "string"
         maxLength: 16
         pattern: "([0-9])*"
+  creditCardResponse:
+    type: "object"
+    required:
+    - "cardBin"
+    - "lastFourDigits"
+    - "cardHolderName"
+    - "expiryDate"
+    - "cardScheme"
+    properties:
+      cardBin:
+        description: "First six digits of the Card Number that is currently recorded as the payment method against the payment schedule."
+        type: "integer"
+        format: "int64"
+      lastFourDigits:
+        description: "Last four digits of the Card Number that is currently recorded as the payment method against the payment schedule."
+        type: "integer"
+        format: "int64"
+      cardHolderName:
+        description: "Name as it appears on the Credit Card"
+        minLength: 0
+        maxLength: 25
+        type: "string"
+      expiryDate:
+        description: "The card expiration date is to be given in MMYY format (i.e. July 2015= 0715)."
+        minLength: 4
+        maxLength: 4
+        type: "string"
+      cardScheme:
+        description: "The card scheme that the card used belongs to."
+        type: "string"
+        enum:
+          - "VISA"
+          - "MASTERCARD"
+          - "AMERICAN EXPRESS"
+          - "DINERS"
   creditCardTokenRequest:
     type: "object"
     required:
@@ -895,7 +1044,7 @@ definitions:
           description: "Identification number unique to each schedule."
           maxLength: 19
         cardDetails:
-          $ref: "#/definitions/walletCreditCard"
+          $ref: "#/definitions/creditCardResponse"
         createdTimestamp:
           type: "string"
           format: "date-time"
