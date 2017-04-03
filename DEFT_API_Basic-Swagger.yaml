@@ -227,7 +227,7 @@ paths:
     post:
       tags:
       - "Payment Schedule"
-      summary: "Create a payment schedule for a payer against a nominated payment method."
+      summary: "POST Payment-Schedule"
       description: |
       
         Create a payment-schedule for a payer against a nominated payment method.
