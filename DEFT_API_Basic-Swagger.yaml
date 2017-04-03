@@ -89,15 +89,15 @@ consumes:
 
 tags:
 - name: "Authentication"
-  description:  "Request used to gain authorization credentials following authentication with the DEFT Data Servers."
+  description:  "APIs used to authenticate with the DEFT Data Servers."
 - name: "Payment Schedule"
-  description: "APIs specific to creating, deleting or querying payment schedules."
+  description: "APIs used to create, delete or query payment-schedules."
 - name: "Payment"
-  description: "APIs specific to requesting a one-off payment or performing a direct debit request."
+  description: "APIs used to request a one-off payment request."
 - name: "Card Token"
   description: "API used to create, delete and update credit card tokens."
 - name: "Surcharge"
-  description: "APIs used to calculate the surcharge applied to a transaction and the total amount that will be charged to a payer."
+  description: "APIs used to calculate an itemised list of fees and surcharges applied to a transaction."
 - name: "DRN Generation"
   description: "APIs used to create a unique DEFT Reference Number for future DEFT transactions."
 
